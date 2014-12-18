@@ -38,6 +38,7 @@ import subprocess
 
 try:
   from osgeo import gdal
+  from sys import platform as _platform
 except ImportError:
   import gdal
 
@@ -78,21 +79,13 @@ class rasmover:
         self.action.triggered.connect(self.run)
 
         # Add toolbar button and menu item
-#        self.iface.addToolBarIcon(self.action)
-#        self.iface.addPluginToMenu(u"&rasmover", self.action)
-
-        self.iface.addPluginToRasterMenu(QCoreApplication.translate("RasterMover", "rasmover"), self.action)
-        self.iface.addRasterToolBarIcon(self.action)
-
+        self.iface.addToolBarIcon(self.action)
+        self.iface.addPluginToMenu(u"&rasmover", self.action)
 
     def unload(self):
         # Remove the plugin menu item and icon
-#        self.iface.removePluginMenu(u"&rasmover", self.action)
-#        self.iface.removeToolBarIcon(self.action)
-
-        self.iface.removeRasterToolBarIcon(self.action)
-        self.iface.removePluginRasterMenu(QCoreApplication.translate("RasterMover", "rasmover"), self.action)
-
+        self.iface.removePluginMenu(u"&rasmover", self.action)
+        self.iface.removeToolBarIcon(self.action)
 
     # run method that performs all the real work
     def run(self):
@@ -172,9 +165,10 @@ class PointTool(QgsMapTool):
 
 
             out_folder = os.getenv("HOME")+'/.qgis2/python/plugins/rasmover/temp'
+            if _platform == "win32":
+               out_folder = out_folder.replace("\\","/")
 
-            out_folder = out_folder.replace("\\","/")
-
+            #print("%s\n") %(out_folder)
 
             listaRaster = out_folder + '/lista.txt'
             
@@ -195,17 +189,16 @@ class PointTool(QgsMapTool):
 
             if (toglimi != 0):
                  QgsMapLayerRegistry.instance().removeMapLayer(toglimi)
-                 print("HO TOLTO %s\n") %("moved")                 
+                 #print("HO TOLTO %s\n") %("moved")                 
 
             f5.close()
                  
             fileVRT = ("%s") %(out_folder + '/original.vrt')
-            qgisPath = QgsApplication.prefixPath() + '/../../bin/' + 'gdalbuildvrt'
-
-#            subprocess.call([ "gdalbuildvrt", fileVRT, "-input_file_list", listaRaster ])
-            subprocess.call([ qgisPath, fileVRT, "-input_file_list", listaRaster ])                        
-
-            fileVRT = fileVRT.replace("/","\\")
+            
+            subprocess.call(["gdalbuildvrt", fileVRT, "-input_file_list", listaRaster ])            
+            #print fileVRT
+            if _platform == "win32":
+               fileVRT = fileVRT.replace("/","\\")
                         
             f1   = open(fileVRT, 'r')
 
@@ -216,10 +209,12 @@ class PointTool(QgsMapTool):
 
                if(string.find(stringa,"<GeoTransform>") <> -1):
                   words = stringa.split();
+#                  print("%s") %( words[1].replace(",","") )
+#                  print("%s") %( words[4].replace(",","") )
 
                   coordX = words[1].replace(",","")
                   coordY = words[4].replace(",","")  
-                  
+
                   X = float( coordX ) + dx
                   Y = float( coordY ) + dy                                 
 
@@ -229,10 +224,10 @@ class PointTool(QgsMapTool):
                   stringazza = ("%s %s") %( stringazza, words[3] )
                   stringazza = ("%s %lf,") %( stringazza, Y )
                   stringazza = ("%s %s ") %( stringazza, words[5] )
-                                                      
+                  if _platform != "win32":
+                     stringazza = ("%s %s ") %( stringazza, words[6] )
+                                
                   f2.write(stringazza)
-                  
-                  
                else:  
                   f2.write(stringa)
 
